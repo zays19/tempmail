@@ -26,11 +26,6 @@ body{
     border-radius:10px;
     cursor:pointer;
     user-select:none;
-    transition:0.2s;
-}
-
-.email:hover,.otp:hover{
-    background:#17223a;
 }
 
 button{
@@ -62,83 +57,59 @@ button{
 
 <button onclick="generate()">Generate Email</button>
 <span class="refresh" onclick="check()">⟳</span>
-
-</div>
-
-<div class="box">
-<h2>Bulk Mode (5 Email)</h2>
-<div id="bulk"></div>
-<button onclick="bulk()">Generate 5 Email</button>
 </div>
 
 <script>
 
-let currentEmail = null
-let currentToken = null
-let loop = null
+let currentEmail=null
+let currentToken=null
+let loop=null
 
-function copyText(text, element){
-    navigator.clipboard.writeText(text)
-    const old = element.innerText
-    element.innerText = "✓ Copied"
-    element.style.background="#16a34a"
-
-    setTimeout(()=>{
-        element.innerText = old
-        element.style.background="#0b1220"
-    },900)
+function copy(el){
+    navigator.clipboard.writeText(el.innerText)
+    el.innerText="✓ Copied"
+    setTimeout(()=>{el.innerText=currentEmail},900)
 }
 
-document.getElementById("email").onclick=()=>{
-    if(currentEmail) copyText(currentEmail, document.getElementById("email"))
-}
-
-document.getElementById("otp").onclick=()=>{
-    const otp = document.getElementById("otp").innerText
-    if(otp!="Menunggu OTP..." && otp!="Klik Generate"){
-        copyText(otp, document.getElementById("otp"))
-    }
-}
+document.getElementById("email").onclick=()=>{if(currentEmail) copy(document.getElementById("email"))}
+document.getElementById("otp").onclick=()=>copy(document.getElementById("otp"))
 
 async function generate(){
-    document.getElementById("email").innerText="Generating..."
-    document.getElementById("otp").innerText="Menunggu OTP..."
 
-    const res = await fetch("/generate")
+    document.getElementById("email").innerText="Generating..."
+
+    // MINTA EMAIL LANGSUNG KE TEMPMAIL
+    const res = await fetch("https://temp-mail.app/api/email/new", {
+        credentials:"include"
+    })
+
     const data = await res.json()
 
-    currentEmail = data.email
+    currentEmail = data.mailbox + "@" + data.domain
     currentToken = data.token
 
     document.getElementById("email").innerText=currentEmail
+    document.getElementById("otp").innerText="Menunggu OTP..."
 
     if(loop) clearInterval(loop)
-    loop = setInterval(check,5000)
+    loop=setInterval(check,5000)
 }
 
 async function check(){
     if(!currentToken) return
 
-    const res = await fetch(`/check?token=${currentToken}`)
+    const res = await fetch(`https://temp-mail.app/api/mail/list?token=${currentToken}`)
     const data = await res.json()
 
-    if(data.otp){
-        document.getElementById("otp").innerText=data.otp
+    if(data.length>0){
+        const mail = data[0]
+        const body = (mail.body || "") + (mail.text || "")
+        const match = body.match(/\b\d{4,8}\b/)
+
+        if(match){
+            document.getElementById("otp").innerText=match[0]
+        }
     }
-}
-
-async function bulk(){
-    document.getElementById("bulk").innerHTML="Generating..."
-
-    const res = await fetch("/bulk")
-    const data = await res.json()
-
-    let html=""
-    data.forEach(e=>{
-        html+=`<div class="email" onclick="navigator.clipboard.writeText('${e}')">${e}</div>`
-    })
-
-    document.getElementById("bulk").innerHTML=html
 }
 
 </script>
