@@ -1,6 +1,7 @@
 from flask import Flask, jsonify, render_template
 import requests
 import re
+import os
 
 app = Flask(__name__)
 
@@ -49,3 +50,8 @@ def get_otp(login, domain):
         return jsonify({"otp": otp})
     except:
         return jsonify({"otp": None})
+
+
+    if __name__ == "__main__":
+        port = int(os.environ.get("PORT", 5000))
+        app.run(host="0.0.0.0", port=port)
