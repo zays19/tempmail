@@ -26,6 +26,11 @@ body{
     border-radius:10px;
     cursor:pointer;
     user-select:none;
+    transition:0.2s;
+}
+
+.email:hover,.otp:hover{
+    background:#17223a;
 }
 
 button{
@@ -39,8 +44,8 @@ button{
 
 .refresh{
     cursor:pointer;
-    font-size:18px;
-    margin-left:8px;
+    font-size:20px;
+    margin-left:10px;
 }
 </style>
 </head>
@@ -69,33 +74,52 @@ button{
 <script>
 
 let currentEmail = null
+let currentToken = null
 let loop = null
 
-function copy(el){
-    navigator.clipboard.writeText(el.innerText)
-    el.innerText="✓ Copied"
-    setTimeout(()=>{location.reload()},600)
+function copyText(text, element){
+    navigator.clipboard.writeText(text)
+    const old = element.innerText
+    element.innerText = "✓ Copied"
+    element.style.background="#16a34a"
+
+    setTimeout(()=>{
+        element.innerText = old
+        element.style.background="#0b1220"
+    },900)
 }
 
-document.getElementById("email").onclick=()=>copy(document.getElementById("email"))
-document.getElementById("otp").onclick=()=>copy(document.getElementById("otp"))
+document.getElementById("email").onclick=()=>{
+    if(currentEmail) copyText(currentEmail, document.getElementById("email"))
+}
+
+document.getElementById("otp").onclick=()=>{
+    const otp = document.getElementById("otp").innerText
+    if(otp!="Menunggu OTP..." && otp!="Klik Generate"){
+        copyText(otp, document.getElementById("otp"))
+    }
+}
 
 async function generate(){
+    document.getElementById("email").innerText="Generating..."
+    document.getElementById("otp").innerText="Menunggu OTP..."
+
     const res = await fetch("/generate")
     const data = await res.json()
 
     currentEmail = data.email
+    currentToken = data.token
+
     document.getElementById("email").innerText=currentEmail
-    document.getElementById("otp").innerText="Menunggu OTP..."
 
     if(loop) clearInterval(loop)
     loop = setInterval(check,5000)
 }
 
 async function check(){
-    if(!currentEmail) return
+    if(!currentToken) return
 
-    const res = await fetch("/check?email="+currentEmail)
+    const res = await fetch(`/check?token=${currentToken}`)
     const data = await res.json()
 
     if(data.otp){
@@ -104,6 +128,8 @@ async function check(){
 }
 
 async function bulk(){
+    document.getElementById("bulk").innerHTML="Generating..."
+
     const res = await fetch("/bulk")
     const data = await res.json()
 
