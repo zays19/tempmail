@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Temp Mail</title>
+<title>Temporary Mail</title>
 
 <style>
 body{
@@ -42,7 +42,28 @@ button{
 button:hover{ background:#2563eb; }
 
 .small{ font-size:13px;color:#9ca3af; }
-.bulkItem{margin-top:15px;}
+
+.refreshBtn{
+    background:#1f2937;
+    padding:12px 14px;
+    border-radius:10px;
+    cursor:pointer;
+    font-size:20px;
+    transition:0.2s;
+    user-select:none;
+}
+.refreshBtn:hover{
+    background:#374151;
+    transform:rotate(90deg);
+}
+
+@keyframes blink {
+  0% {opacity:0.3;}
+  50% {opacity:1;}
+  100% {opacity:0.3;}
+}
+
+#status{ animation: blink 1.2s infinite; }
 </style>
 </head>
 
@@ -57,8 +78,14 @@ button:hover{ background:#2563eb; }
     <div class="box" id="email" onclick="copyText(this)">Klik Generate</div>
     <div class="small">klik email untuk copy</div>
 
-    <div class="box" id="otp" onclick="copyText(this)">Menunggu OTP...</div>
-    <div class="small">klik otp untuk copy</div>
+    <div style="display:flex;align-items:center;gap:8px;justify-content:center;">
+        <div class="box" id="otp" onclick="copyText(this)" style="flex:1;">
+            Menunggu OTP ⏳
+        </div>
+        <div class="refreshBtn" onclick="manualRefresh()">⟳</div>
+    </div>
+
+    <div class="small" id="status">mengecek inbox...</div>
 
     <button onclick="generate()">Generate Email</button>
 </div>
@@ -74,23 +101,37 @@ button:hover{ background:#2563eb; }
 
 let currentEmail=null;
 let otpInterval=null;
+let retry=0;
 let bulkIntervals={};
 
+/* ===== COPY ===== */
 function copyText(el){
-    navigator.clipboard.writeText(el.innerText);
-    el.innerText="Copied!";
-    setTimeout(()=>{location.reload()},700);
+    const text = el.innerText;
+
+    navigator.clipboard.writeText(text).then(()=>{
+        const old = el.innerText;
+        el.innerText = "✓ Copied";
+        el.style.background="#16a34a";
+
+        setTimeout(()=>{
+            el.innerText = old;
+            el.style.background="#0f1627";
+        },900);
+    });
 }
 
 /* ===== SINGLE ===== */
-
 function generate(){
     fetch("/generate")
     .then(r=>r.json())
     .then(data=>{
         currentEmail=data.email;
         email.innerText=data.email;
-        otp.innerText="Menunggu OTP...";
+        otp.innerText="Menunggu OTP ⏳";
+
+        retry=0;
+        status.innerText="mengecek inbox...";
+        status.style.animation="blink 1.2s infinite";
 
         if(otpInterval) clearInterval(otpInterval);
         otpInterval=setInterval(checkOTP,3000);
@@ -98,20 +139,29 @@ function generate(){
 }
 
 function checkOTP(){
-    if(!currentEmail)return;
+    if(!currentEmail) return;
 
     fetch("/get_otp?email="+currentEmail)
     .then(r=>r.json())
     .then(data=>{
         if(data.otp){
             otp.innerText=data.otp;
+            status.innerText="OTP ditemukan ✓";
+            status.style.animation="none";
             clearInterval(otpInterval);
+        }else{
+            retry++;
+            status.innerText="mengecek inbox... ("+retry+")";
         }
     });
 }
 
-/* ===== BULK ===== */
+function manualRefresh(){
+    status.innerText="memeriksa manual...";
+    checkOTP();
+}
 
+/* ===== BULK ===== */
 function generateBulk(){
     bulk.innerHTML="Loading...";
 
@@ -122,12 +172,17 @@ function generateBulk(){
 
         data.emails.forEach((mail,i)=>{
             let div=document.createElement("div");
-            div.className="bulkItem";
 
             div.innerHTML=`
-                <div class="box" id="bmail${i}" onclick="copyText(this)">${mail}</div>
-                <div class="box" id="botp${i}" onclick="copyText(this)">Menunggu OTP...</div>
-            `;
+            <div style="margin-top:15px;">
+                <div class="box" onclick="copyText(this)">${mail}</div>
+                <div style="display:flex;align-items:center;gap:8px;justify-content:center;">
+                    <div class="box" id="botp${i}" onclick="copyText(this)" style="flex:1;">
+                        Menunggu OTP...
+                    </div>
+                    <div class="refreshBtn" onclick="bulkRefresh('${mail}',${i})">⟳</div>
+                </div>
+            </div>`;
 
             bulk.appendChild(div);
             startBulkOTP(mail,i);
@@ -146,6 +201,17 @@ function startBulkOTP(email,i){
             }
         });
     },3000);
+}
+
+function bulkRefresh(email,i){
+    fetch("/get_otp?email="+email)
+    .then(r=>r.json())
+    .then(data=>{
+        if(data.otp){
+            document.getElementById("botp"+i).innerText=data.otp;
+            clearInterval(bulkIntervals[i]);
+        }
+    });
 }
 
 </script>

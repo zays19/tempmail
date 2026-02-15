@@ -21,7 +21,6 @@ def get_domains():
     except:
         pass
 
-    # fallback kalau API delay
     return [
         "1secmail.com",
         "1secmail.org",
@@ -33,13 +32,10 @@ def get_domains():
         "xojxe.com"
     ]
 
-
 # ================= UNIQUE EMAIL =================
 def random_email():
     domains = get_domains()
 
-    # anti nabrak:
-    # random + waktu + entropy
     rand = ''.join(random.choices(string.ascii_lowercase + string.digits, k=6))
     ts = str(int(time.time()))[-5:]
     entropy = secrets.token_hex(2)
@@ -48,37 +44,31 @@ def random_email():
     domain = random.choice(domains)
     return f"{name}@{domain}"
 
-
 # ================= OTP EXTRACT =================
 def extract_otp(text):
     if not text:
         return None
-
     match = re.search(r"\b(\d{4,8})\b", text)
     if match:
         return match.group(1)
     return None
 
-
 @app.route("/")
 def home():
     return render_template("index.html")
 
-
-# ================= GENERATE SINGLE =================
+# ===== SINGLE EMAIL =====
 @app.route("/generate")
 def generate():
     return jsonify({"email": random_email()})
 
-
-# ================= GENERATE BULK =================
+# ===== BULK =====
 @app.route("/generate_bulk")
 def generate_bulk():
     emails = [random_email() for _ in range(5)]
     return jsonify({"emails": emails})
 
-
-# ================= GET OTP =================
+# ===== GET OTP =====
 @app.route("/get_otp")
 def get_otp():
     email = request.args.get("email")
