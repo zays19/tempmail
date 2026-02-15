@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Temp Mail OTP</title>
+
+<style>
+body{
+background:#0b1220;
+color:white;
+font-family:Arial;
+text-align:center;
+}
+
+h2{
+margin-top:25px;
+}
+
+.card{
+background:#121a2b;
+margin:15px;
+padding:15px;
+border-radius:14px;
+box-shadow:0 0 10px rgba(0,0,0,0.5);
+}
+
+.email,.otp{
+padding:14px;
+margin:8px;
+border-radius:10px;
+background:#0f172a;
+cursor:pointer;
+word-break:break-all;
+}
+
+.email:hover{
+background:#1e293b;
+}
+
+.otp{
+color:#4ade80;
+font-size:22px;
+font-weight:bold;
+}
+
+button{
+padding:10px 20px;
+border:none;
+border-radius:8px;
+background:#2563eb;
+color:white;
+margin-top:10px;
+font-size:16px;
+}
+
+.wait{
+color:#9ca3af;
+}
+
+</style>
+</head>
+
+<body>
+
+<h1>Temporary Mail</h1>
+
+<h2>Single Email</h2>
+<div class="card">
+<div id="singleEmail" class="email">Klik Generate</div>
+<div id="singleOtp" class="otp wait">Menunggu OTP</div>
+<button onclick="generateSingle()">Generate Email</button>
+</div>
+
+<h2>Bulk Mode (5 Email)</h2>
+<div id="bulk"></div>
+
+<script>
+function copy(text){
+navigator.clipboard.writeText(text);
+}
+
+// ===== SINGLE =====
+let sLogin,sDomain;
+
+async function generateSingle(){
+let r=await fetch("/api/new");
+let d=await r.json();
+
+document.getElementById("singleEmail").innerText=d.email;
+copy(d.email);
+
+[sLogin,sDomain]=d.email.split("@");
+document.getElementById("singleOtp").innerText="Menunggu OTP";
+}
+
+async function checkSingle(){
+if(!sLogin)return;
+
+let r=await fetch(`/api/otp/${sLogin}/${sDomain}`);
+let d=await r.json();
+
+if(d.otp){
+let box=document.getElementById("singleOtp");
+box.innerText=d.otp;
+box.classList.remove("wait");
+copy(d.otp);
+}
+}
+setInterval(checkSingle,4000);
+
+
+// ===== BULK =====
+let mails=[];
+
+async function generateBulk(){
+let box=document.getElementById("bulk");
+box.innerHTML="";
+mails=[];
+
+for(let i=0;i<5;i++){
+let r=await fetch("/api/new");
+let d=await r.json();
+
+let [login,domain]=d.email.split("@");
+
+mails.push({login,domain,id:i});
+
+box.innerHTML+=`
+<div class="card">
+<div class="email" onclick="copy('${d.email}')">${d.email}</div>
+<div id="otp${i}" class="otp wait">Menunggu OTP</div>
+</div>`;
+}
+}
+
+async function checkBulk(){
+for(let m of mails){
+let r=await fetch(`/api/otp/${m.login}/${m.domain}`);
+let d=await r.json();
+
+if(d.otp){
+let box=document.getElementById("otp"+m.id);
+box.innerText=d.otp;
+box.classList.remove("wait");
+copy(d.otp);
+}
+}
+}
+
+setInterval(checkBulk,5000);
+generateBulk();
+</script>
+
+</body>
+</html>
